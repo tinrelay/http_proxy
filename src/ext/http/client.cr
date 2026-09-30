@@ -51,6 +51,11 @@ module HTTP
       yield
     end
 
+    # A supplied IO cannot reconnect; preserve EOF/reset for its caller instead.
+    private def should_retry_request?(request, exc, reusing_connection) : Bool
+      @reconnect && previous_def
+    end
+
     # Keep proxy behavior across reconnects by rebuilding @io via proxy as well.
     private def io
       current_io = @io

@@ -61,6 +61,26 @@ def open(proxy, host = "relay.invalid", context = client_context, read_timeout =
 end
 
 describe "http_proxy low-level transport qualification" do
+  it "reports an empty origin response without reconnecting a one-request tunnel" do
+    # WebMock replaces exec_internal, so probe the actual stdlib in a clean process.
+    program = <<-CRYSTAL
+      require "./src/http_proxy"
+      client = HTTP::Client.new(IO::Memory.new, "relay.invalid", 443)
+      begin
+        client.get("/healthz") { |_| }
+      rescue error
+        puts error.class
+      ensure
+        client.close
+      end
+      CRYSTAL
+    output = IO::Memory.new
+    result = Process.run("crystal", ["eval", program],
+      chdir: File.expand_path("..", __DIR__), output: output, error: STDERR)
+    result.success?.should be_true
+    output.to_s.strip.should eq("IO::EOFError")
+  end
+
   it "tunnels without resolving the origin locally and keeps credentials out of its request" do
     WebMock.allow_net_connect = true
     with_proxy do |proxy, connects, requests|
