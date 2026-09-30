@@ -105,6 +105,23 @@ puts response.body
 
 ## Development
 
+### Low-level tunnels
+
+`HTTP::Proxy::Client#open` can supply a verified TLS tunnel to
+`HTTP::Client.new(io, host, port)` without forwarding proxy credentials in
+origin requests. Pass the origin's ordinary verified TLS context; `open` binds
+verification and SNI to its `host` argument. There is no direct fallback.
+
+The optional `handshake_timeout` bounds the complete CONNECT response and TLS
+handshake together, independently of socket read/write inactivity timeouts.
+DNS and TCP connection keep their explicit native timeout parameters. Failed
+handshakes close their socket. `HTTP::Proxy::Error < IO::Error` exposes `phase`
+(`tcp`, `connect`, `tls`), `reason`, optional `status_code`, and `retryable?`
+without endpoint, credential, or arbitrary proxy-response text.
+
+`spec/support/tunnel/fixture.key` is an intentionally public, test-only key.
+It must never be used by a service.
+
 ### Proxy server
 
 * [x] Basic HTTP Proxy: GET, POST, PUT, DELETE support

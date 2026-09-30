@@ -130,12 +130,15 @@ describe HTTP::Proxy::Client do
 
         it "fails if the proxy server is not reachable" do
           with_proxy_server do |host, _port, _username, _password, wants_close|
-            proxy_client = HTTP::Proxy::Client.new(host, 8081)
+            closed = TCPServer.new(host, 0)
+            closed_port = closed.local_address.port
+            closed.close
+            proxy_client = HTTP::Proxy::Client.new(host, closed_port)
 
             uri = URI.parse("http://httpbingo.org")
             client = HTTP::Client.new(uri)
 
-            expect_raises IO::Error, /Failed to open TCP connection to httpbingo.org:80 \(Error connecting to '127.0.0.1:8081':/ do
+            expect_raises IO::Error, /HTTP proxy tcp transport/ do
               client.proxy = proxy_client
             end
           ensure
