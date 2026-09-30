@@ -116,7 +116,12 @@ module HTTP
             {% if !flag?(:without_openssl) %}
               if tls
                 phase = :tls
-                socket = OpenSSL::SSL::Socket::Client.new(socket, context: tls, sync_close: true, hostname: host)
+                hostname = host.rchop('.')
+                if hostname.starts_with?('[') && hostname.ends_with?(']')
+                  hostname = hostname[1..-2]
+                end
+                socket = OpenSSL::SSL::Socket::Client.new(socket,
+                  context: tls, sync_close: true, hostname: hostname)
               end
             {% end %}
           else
@@ -134,11 +139,15 @@ module HTTP
       rescue error
         reason = case error
                  when IO::TimeoutError then :timeout
-                 when OpenSSL::Error   then :tls_verification
                  when Socket::Error    then :transport
                  when IO::Error
                    error.os_error ? :transport : :invalid_response
-                 else :invalid_response
+                 else
+                   {% if !flag?(:without_openssl) %}
+                     error.is_a?(OpenSSL::Error) ? :tls_failure : :invalid_response
+                   {% else %}
+                     :invalid_response
+                   {% end %}
                  end
         raise Error.new(phase || :tcp, expired ? :timeout : reason)
       ensure
